@@ -1,5 +1,5 @@
 dependencies:
- - name: langevitour
+ - name: langevitourRmControlsShiny
    version: "0.5.1"
    src: htmlwidgets/lib/
    script:

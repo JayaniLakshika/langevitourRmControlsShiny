@@ -52,145 +52,145 @@
 #'
 #' @examples
 #' library(palmerpenguins)
-#' 
+#'
 #' completePenguins <- na.omit(penguins[,c(1,3,4,5,6)])
 #' scale <- apply(completePenguins[,-1], 2, sd)*4
-#' 
+#'
 #' langevitour(
-#'     completePenguins[,-1], 
-#'     completePenguins$species, 
+#'     completePenguins[,-1],
+#'     completePenguins$species,
 #'     scale=scale, pointSize=2)
 #'
 #'
 #' # An example setting the widget's initial state
-#'  
+#'
 #' langevitour(
-#'     completePenguins[,-1], 
-#'     completePenguins$species, 
+#'     completePenguins[,-1],
+#'     completePenguins$species,
 #'     scale=scale, pointSize=2,
 #'     state='{"guideType":"pca","labelInactive":["bill_length_mm"]}')
 #'
 #' @export
 langevitour <- function(
-        X, group=NULL, name=NULL, center=NULL, scale=NULL, 
+        X, group=NULL, name=NULL, center=NULL, scale=NULL,
         extraAxes=NULL, lineFrom=NULL, lineTo=NULL, lineColors=NULL,
-        axisColors=NULL, levelColors=NULL, colorVariation=0.3, pointSize=1, subsample=NULL, 
+        axisColors=NULL, levelColors=NULL, colorVariation=0.3, pointSize=1, subsample=NULL,
         state=NULL, width=NULL, height=NULL, elementId=NULL,
         link=NULL, link_filter=TRUE) {
-    
+
     # Ensure data is matrix
-    
+
     X <- as.matrix(X)
-    
+
     columnNames <- colnames(X)
     colnames(X) <- NULL
     rownames(X) <- NULL
-    
+
     if (is.null(columnNames))
         columnNames <- paste0("V", seq_len(ncol(X)))
-    
-    
+
+
     # Grouping
-    
+
     if (is.null(group))
         group <- rep("", nrow(X))
-    
+
     names(group) <- NULL
-    
+
     group <- as.factor(group)
-    
-    
+
+
     # Check for crosstalk to allow linked selections
     crosstalkGroup <- NULL
     crosstalkKey <- NULL
     dependencies <- NULL
-    
+
     if (!is.null(link)) {
         assertthat::assert_that(crosstalk::is.SharedData(link))
         dependencies <- crosstalk::crosstalkLibs()
         crosstalkGroup <- link$groupName()
         crosstalkKey <- link$key()
     }
-    
+
     assertthat::assert_that( assertthat::is.flag(link_filter) )
-    
-    
+
+
     # Check for problems (not exhaustive!)
-    
-    assertthat::assert_that( 
+
+    assertthat::assert_that(
         ncol(X) >= 2,
         length(columnNames) == ncol(X),
         length(group) == nrow(X),
         is.null(name) || length(name) == nrow(X),
         length(lineFrom) == length(lineTo),
         is.null(lineColors) || length(lineColors) == length(lineFrom),
-        all(lineFrom >= 1), 
-        all(lineTo >= 1), 
-        all(lineFrom <= nrow(X)), 
+        all(lineFrom >= 1),
+        all(lineTo >= 1),
+        all(lineFrom <= nrow(X)),
         all(lineTo <= nrow(X)),
         assertthat::noNA(X),
         assertthat::noNA(group),
         assertthat::noNA(name),
         assertthat::noNA(lineFrom),
         assertthat::noNA(lineTo))
-    
-    
+
+
     # Centering
-    
+
     if (is.null(center))
         center <- colMeans(X, na.rm=TRUE)
     if (length(center) == 1)
         center <- rep(ncol(X), center)
-    
+
     names(center) <- NULL
-    
+
     assertthat::assert_that( length(center) == ncol(X) )
-    
-    
+
+
     # Scaling
-    
+
     # Potentially expensive
     if (is.null(scale)) {
         X_centered <- sweep(X,2,center,"-")
         scale <- max(svd(X_centered)$d) / sqrt(nrow(X)) * 2.5
     }
-    
+
     if (length(scale) == 1)
         scale <- rep(scale, ncol(X))
-    
+
     names(scale) <- NULL
-    
+
     assertthat::assert_that( length(scale) == ncol(X) )
-    
-    
+
+
     # Extra axes
-    
+
     if (!is.null(extraAxes)) {
         extraAxes <- as.matrix(extraAxes)
-    
+
         assertthat::assert_that( assertthat::noNA(extraAxes) )
         assertthat::assert_that( nrow(extraAxes) == ncol(X) )
-        
+
         if (is.null(colnames(extraAxes)))
             colnames(extraAxes) <- paste0("E", seq_len(ncol(extraAxes)))
     }
-    
-    
+
+
     # Subsampling
-    
+
     if (!is.null(subsample) && subsample < nrow(X)) {
         ind <- sample.int(nrow(X), subsample)
-        
+
         X <- X[ind,,drop=FALSE]
-        
+
         group <- group[ind]
-        
+
         if (!is.null(name))
             name <- name[ind]
-        
+
         if (!is.null(crosstalkKey))
             crosstalkKey <- crosstalkKey[ind]
-        
+
         if (!is.null(lineFrom)) {
             lineFrom <- match(lineFrom, ind)
             lineTo <- match(lineTo, ind)
@@ -199,14 +199,14 @@ langevitour <- function(
             lineTo <- lineTo[keep]
         }
     }
-    
-    
+
+
     # Convert to form that will JSON-ify correctly
     #
     # htmlwidgets uses jsonlite::toJSON with auto_unbox=TRUE.
     # Numeric vectors of length one become numbers, not arrays.
     # I convert vectors to lists to prevent this.
-    
+
     data <- list(
         X = X,
         center = as.list(as.numeric(center)),
@@ -215,33 +215,33 @@ langevitour <- function(
         rownames = as.list(as.character(name)),
         group = as.list(as.integer(group)-1),
         levels = as.list(levels(group)),
-        
+
         extraAxes = extraAxes,
         extraAxesNames = as.list(colnames(extraAxes)),
-        
+
         # Convert from 1 based to 0 based indices
-        lineFrom = as.list(as.numeric(lineFrom) - 1), 
+        lineFrom = as.list(as.numeric(lineFrom) - 1),
         lineTo = as.list(as.numeric(lineTo) - 1),
         lineColors = as.list(as.character(lineColors)),
-        
+
         axisColors=as.list(as.character(axisColors)),
         levelColors=as.list(as.character(levelColors)),
         colorVariation=as.numeric(colorVariation),
         pointSize=as.numeric(pointSize),
-        
+
         crosstalkGroup=crosstalkGroup,
         crosstalkKey=crosstalkKey,
         crosstalkWantFilter=link_filter,
-        
+
         state=state)
-    
-    
+
+
     htmlwidgets::createWidget(
         name = 'langevitour',
         x = data,
         width = width,
         height = height,
-        package = 'langevitour',
+        package = 'langevitourRmControlsShiny',
         elementId = elementId,
         sizingPolicy = htmlwidgets::sizingPolicy(
             defaultWidth = 700,
@@ -271,34 +271,34 @@ langevitour <- function(
 #' @name langevitour-shiny
 #'
 #' @examples
-#' 
+#'
 #' library(shiny)
 #' library(palmerpenguins)
-#' 
+#'
 #' completePenguins <- na.omit(penguins[,c(1,3,4,5,6)])
 #' scale <- apply(completePenguins[,-1], 2, sd)*4
-#' 
+#'
 #' ui <- fluidPage(
 #'     sliderInput('zoom', 'Zoom', 0, min=-1, max=1, step=0.1),
 #'     langevitourOutput('widget')
 #' )
-#' 
-#' server <- function(input,output) { 
+#'
+#' server <- function(input,output) {
 #'     output$widget <- renderLangevitour({
 #'         langevitour(
-#'             completePenguins[,-1], 
-#'             completePenguins$species, 
+#'             completePenguins[,-1],
+#'             completePenguins$species,
 #'             scale=scale * 10^input$zoom, pointSize=2)
 #'     })
 #' }
-#' 
+#'
 #' app <- shinyApp(ui, server)
-#' 
+#'
 #' # Use runApp(app) or runGadget(app) to run app.
 #'
 #' @export
 langevitourOutput <- function(outputId, width = '100%', height = '600px'){
-    htmlwidgets::shinyWidgetOutput(outputId, 'langevitour', width, height, package = 'langevitour')
+    htmlwidgets::shinyWidgetOutput(outputId, 'langevitour', width, height, package = 'langevitourRmControlsShiny')
 }
 
 #' @rdname langevitour-shiny
