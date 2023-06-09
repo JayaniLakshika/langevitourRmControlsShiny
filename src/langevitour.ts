@@ -383,23 +383,23 @@ export class Langevitour extends EventTarget {
             }
         });
 
-        this.shadowChild.addEventListener('fullscreenchange', () => {
-            let el = this.shadowChild;
-            if (document.fullscreenElement) {
-                this.originalWidth = this.width;
-                this.originalHeight = this.height;
-                let pad = Math.max(0, el.offsetWidth-el.offsetHeight)/2;
-                el.style.paddingLeft = pad+'px';
-                this.width = el.offsetWidth-pad;
-                this.height = el.offsetHeight;
-                this.configure();
-            } else {
-                el.style.paddingLeft = '0px';
-                this.width = this.originalWidth;
-                this.height = this.originalHeight;
-                this.configure();
-            }
-        });
+//        this.shadowChild.addEventListener('fullscreenchange', () => {
+//            let el = this.shadowChild;
+//            if (document.fullscreenElement) {
+//                this.originalWidth = this.width;
+//                this.originalHeight = this.height;
+//                let pad = Math.max(0, el.offsetWidth-el.offsetHeight)/2;
+//                el.style.paddingLeft = pad+'px';
+//                this.width = el.offsetWidth-pad;
+//                this.height = el.offsetHeight;
+//                this.configure();
+//            } else {
+//                el.style.paddingLeft = '0px';
+//                this.width = this.originalWidth;
+//                this.height = this.originalHeight;
+//                this.configure();
+//            }
+//        });
 
         // Info box
         this.get('infoButton').addEventListener('click', () => {
